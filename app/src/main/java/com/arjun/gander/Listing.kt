@@ -133,6 +133,10 @@ internal data class ChildDoc(
 
 internal const val MIME_DIR = "vnd.android.document/directory"
 
+/** True when [name] contains the current filename query, ignoring letter case. */
+internal fun matchesNameQuery(name: String, query: String): Boolean =
+    query.isBlank() || name.contains(query, ignoreCase = true)
+
 /**
  * A folder listing split into directories and files, sorted according to [sortOrder].
  *

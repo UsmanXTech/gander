@@ -9,6 +9,7 @@ import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
@@ -761,13 +762,15 @@ class MainActivityTest {
         assertThat(toolbar.menu.findItem(R.id.action_about).isVisible).isTrue()
         assertThat(toolbar.menu.findItem(R.id.action_sort).isVisible).isFalse()
         assertThat(toolbar.menu.findItem(R.id.action_filter).isVisible).isFalse()
+        assertThat(toolbar.menu.findItem(R.id.action_search_names).isVisible).isFalse()
 
-        // Inside folder: sort and filter visible, share and about hidden
+        // Inside folder: sort, filter and filename search visible; home actions hidden
         controller.clickRow("Documents")
         shadowOf(context.mainLooper).idle()
 
         assertThat(toolbar.menu.findItem(R.id.action_sort).isVisible).isTrue()
         assertThat(toolbar.menu.findItem(R.id.action_filter).isVisible).isTrue()
+        assertThat(toolbar.menu.findItem(R.id.action_search_names).isVisible).isTrue()
         assertThat(toolbar.menu.findItem(R.id.action_share_app).isVisible).isFalse()
         assertThat(toolbar.menu.findItem(R.id.action_about).isVisible).isFalse()
         assertThat(toolbar.menu.findItem(R.id.action_play).isVisible).isFalse()
@@ -780,6 +783,52 @@ class MainActivityTest {
         assertThat(toolbar.menu.findItem(R.id.action_about).isVisible).isTrue()
         assertThat(toolbar.menu.findItem(R.id.action_sort).isVisible).isFalse()
         assertThat(toolbar.menu.findItem(R.id.action_filter).isVisible).isFalse()
+        assertThat(toolbar.menu.findItem(R.id.action_search_names).isVisible).isFalse()
+    }
+
+    @Test
+    fun filenameSearchFiltersNamesAndCanBeCleared() {
+        FakeDocumentsProvider.install()
+            .folder(
+                "root", "Documents",
+                ChildDoc("f1", "Quarterly Report.PDF", "application/pdf", 1024, 0),
+                ChildDoc("f2", "notes.txt", "text/plain", 512, 0),
+                ChildDoc("d1", "Reports", MIME_DIR, 0, 0),
+                ChildDoc("d2", "Archive", MIME_DIR, 0, 0),
+            )
+        val tree = FakeDocumentsProvider.treeUri()
+        context.contentResolver.takePersistableUriPermission(
+            tree, Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
+        val controller = home()
+        controller.clickRow("Documents")
+        val toolbar = controller.get()
+            .findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
+
+        toolbar.menu.performIdentifierAction(R.id.action_search_names, 0)
+        val dialog = ShadowDialog.getLatestDialog() as AlertDialog
+        val input = dialog.window!!.decorView
+            .findViewWithTag<EditText>("filename_search_input")
+        input.setText("REPORT")
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick()
+        shadowOf(context.mainLooper).idle()
+
+        assertThat(controller.rowTitles()).contains("Quarterly Report.PDF")
+        assertThat(controller.rowTitles()).contains("Reports")
+        assertThat(controller.rowTitles()).doesNotContain("notes.txt")
+        assertThat(controller.rowTitles()).doesNotContain("Archive")
+        assertThat(toolbar.subtitle?.toString()).isEqualTo("Name contains: REPORT")
+
+        toolbar.menu.performIdentifierAction(R.id.action_search_names, 0)
+        val clearDialog = ShadowDialog.getLatestDialog() as AlertDialog
+        clearDialog.getButton(AlertDialog.BUTTON_NEUTRAL).performClick()
+        shadowOf(context.mainLooper).idle()
+
+        assertThat(controller.rowTitles()).contains("Quarterly Report.PDF")
+        assertThat(controller.rowTitles()).contains("notes.txt")
+        assertThat(controller.rowTitles()).contains("Reports")
+        assertThat(controller.rowTitles()).contains("Archive")
+        assertThat(toolbar.subtitle).isNull()
     }
 
     @Test

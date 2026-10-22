@@ -202,4 +202,12 @@
     <string name="filter_txt">Text and code</string>
     <string name="filter_model">3D models</string>
     <string name="filter_archive">Archives</string>
+    <string name="search_filenames">Search filenames</string>
+    <string name="search_filenames_title">Search this folder</string>
+    <string name="search_filenames_hint">Enter part of a filename</string>
+    <string name="search_filenames_apply">Search</string>
+    <string name="clear_search">Clear</string>
+    <string name="search_subtitle">Name contains: %1$s</string>
+    <string name="search_empty">No filenames match this search.</string>
+    <string name="search_filter_empty">No files match this search and the active filters.</string>
 </resources>

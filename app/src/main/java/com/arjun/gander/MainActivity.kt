@@ -15,6 +15,7 @@ import android.text.format.DateUtils
 import android.text.format.Formatter
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.TextView
 import com.google.android.material.checkbox.MaterialCheckBox
 import android.widget.Toast
@@ -53,6 +54,7 @@ class MainActivity : AppCompatActivity() {
 
     private val stack = ArrayDeque<Crumb>()
     private val activeFilters = mutableSetOf<String>()
+    private var nameQuery = ""
     private val adapter = RowAdapter()
     private lateinit var toolbar: MaterialToolbar
     private lateinit var lockup: View
@@ -112,6 +114,7 @@ class MainActivity : AppCompatActivity() {
     private val backCallback = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
             stack.removeLast()
+            nameQuery = ""
             if (stack.isEmpty()) {
                 activeFilters.clear()
             }
@@ -163,6 +166,7 @@ class MainActivity : AppCompatActivity() {
             when (item.itemId) {
                 R.id.action_sort -> { showSortDialog(); true }
                 R.id.action_filter -> { showFilterDialog(); true }
+                R.id.action_search_names -> { showNameSearchDialog(); true }
                 R.id.action_play -> { openPlayListing(); true }
                 R.id.action_share_app -> { shareGander(); true }
                 R.id.action_about -> { showAbout(); true }
@@ -208,6 +212,8 @@ class MainActivity : AppCompatActivity() {
 
         restoreStack(savedInstanceState)
         restoreFilters(savedInstanceState)
+        nameQuery = savedInstanceState?.getString(STATE_NAME_QUERY).orEmpty()
+            .takeIf { stack.isNotEmpty() }.orEmpty()
         onBackPressedDispatcher.addCallback(this, backCallback)
     }
 
@@ -234,6 +240,7 @@ class MainActivity : AppCompatActivity() {
         outState.putStringArrayList(STATE_DOC_IDS, ArrayList(stack.map { it.docId }))
         outState.putStringArrayList(STATE_LABELS, ArrayList(stack.map { it.label }))
         outState.putStringArrayList(STATE_ACTIVE_FILTERS, ArrayList(activeFilters))
+        outState.putString(STATE_NAME_QUERY, nameQuery)
     }
 
     private fun restoreFilters(state: Bundle?) {
@@ -467,6 +474,7 @@ class MainActivity : AppCompatActivity() {
         val inFolder = here != null
         toolbar.menu.findItem(R.id.action_sort)?.isVisible = inFolder
         toolbar.menu.findItem(R.id.action_filter)?.isVisible = inFolder
+        toolbar.menu.findItem(R.id.action_search_names)?.isVisible = inFolder
         toolbar.menu.findItem(R.id.action_play)?.isVisible = !inFolder
         toolbar.menu.findItem(R.id.action_share_app)?.isVisible = !inFolder
         toolbar.menu.findItem(R.id.action_about)?.isVisible = !inFolder
@@ -479,7 +487,12 @@ class MainActivity : AppCompatActivity() {
         } else {
             null
         }
-        toolbar.subtitle = if (filterSummary != null) getString(R.string.filter_subtitle, filterSummary) else null
+        val searchSummary = nameQuery.takeIf { inFolder && it.isNotEmpty() }
+            ?.let { getString(R.string.search_subtitle, it) }
+        toolbar.subtitle = listOfNotNull(
+            filterSummary?.let { getString(R.string.filter_subtitle, it) },
+            searchSummary
+        ).joinToString(" · ").ifEmpty { null }
 
         val token = ++renderToken
         // Delayed rather than shown at once. Most folders come back in a few
@@ -492,6 +505,7 @@ class MainActivity : AppCompatActivity() {
         // Read here, on the main thread, which is the only one that changes it
         val hidden = pending?.uri
         val filters = activeFilters.toSet()
+        val query = nameQuery
 
         loader.execute {
             // Checked here as well as after, because loader is a single thread: without
@@ -499,7 +513,7 @@ class MainActivity : AppCompatActivity() {
             // wait for the whole of the first, which on the slow provider this exists
             // for is the wait it was meant to remove.
             if (token != renderToken) return@execute
-            val screen = if (here == null) homeRows(hidden) else folderRows(here, filters)
+            val screen = if (here == null) homeRows(hidden) else folderRows(here, filters, query)
             main.post {
                 main.removeCallbacks(announce)
                 if (token != renderToken || isDestroyed) return@post
@@ -647,6 +661,7 @@ class MainActivity : AppCompatActivity() {
             rows += Row.Item(
                 "DIR", DIR_COLOR, label, null,
                 onClick = {
+                    nameQuery = ""
                     stack.addLast(
                         Crumb(perm.uri, DocumentsContract.getTreeDocumentId(perm.uri), label)
                     )
@@ -680,7 +695,7 @@ class MainActivity : AppCompatActivity() {
         return Screen(rows)
     }
 
-    private fun folderRows(crumb: Crumb, filters: Set<String>): Screen {
+    private fun folderRows(crumb: Crumb, filters: Set<String>, query: String): Screen {
         val children = mutableListOf<ChildDoc>()
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
             crumb.treeUri, crumb.docId
@@ -708,19 +723,22 @@ class MainActivity : AppCompatActivity() {
 
         val sortOrder = Settings.sortOrder(this)
         val (dirs, files) = orderChildren(children, sortOrder)
+        val matchingDirs = dirs.filter { matchesNameQuery(it.name, query) }
+        val matchingFiles = files.filter { matchesNameQuery(it.name, query) }
 
         val filteredFiles = if (filters.isEmpty()) {
-            files
+            matchingFiles
         } else {
-            files.filter { f ->
+            matchingFiles.filter { f ->
                 val (badge, _) = badgeFor(f.name, f.mime)
                 badge in filters
             }
         }
 
         val rows = mutableListOf<Row>()
-        dirs.forEach { d ->
+        matchingDirs.forEach { d ->
             rows += Row.Item("DIR", DIR_COLOR, d.name, null, onClick = {
+                nameQuery = ""
                 stack.addLast(Crumb(crumb.treeUri, d.docId, d.name))
                 render()
             })
@@ -744,10 +762,12 @@ class MainActivity : AppCompatActivity() {
             )
         }
         if (rows.isEmpty()) {
-            val emptyMsg = if (filters.isNotEmpty()) {
-                getString(R.string.filter_empty)
-            } else {
-                getString(R.string.empty_folder)
+            val emptyMsg = when {
+                query.isNotEmpty() && filters.isNotEmpty() ->
+                    getString(R.string.search_filter_empty)
+                query.isNotEmpty() -> getString(R.string.search_empty)
+                filters.isNotEmpty() -> getString(R.string.filter_empty)
+                else -> getString(R.string.empty_folder)
             }
             rows += Row.Hint(emptyMsg)
         }
@@ -809,6 +829,33 @@ class MainActivity : AppCompatActivity() {
                 dialog.dismiss()
             }
             .show()
+    }
+
+    private fun showNameSearchDialog() {
+        val input = EditText(this).apply {
+            hint = getString(R.string.search_filenames_hint)
+            setSingleLine(true)
+            tag = "filename_search_input"
+            setText(nameQuery)
+            setSelection(text.length)
+            val horizontal = (24 * resources.displayMetrics.density).toInt()
+            setPadding(horizontal, paddingTop, horizontal, paddingBottom)
+        }
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.search_filenames_title)
+            .setView(input)
+            .setPositiveButton(R.string.search_filenames_apply) { _, _ ->
+                nameQuery = input.text.toString().trim()
+                render()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+        if (nameQuery.isNotEmpty()) {
+            dialog.setNeutralButton(R.string.clear_search) { _, _ ->
+                nameQuery = ""
+                render()
+            }
+        }
+        dialog.show()
     }
 
     private fun showFilterDialog() {
@@ -879,5 +926,6 @@ class MainActivity : AppCompatActivity() {
         const val STATE_DOC_IDS = "stack.docIds"
         const val STATE_LABELS = "stack.labels"
         const val STATE_ACTIVE_FILTERS = "active_filters"
+        const val STATE_NAME_QUERY = "name_query"
     }
 }

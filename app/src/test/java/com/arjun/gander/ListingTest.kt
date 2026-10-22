@@ -318,6 +318,20 @@ class ListingTest {
     }
 
     @Test
+    fun filenameSearchIsCaseInsensitiveAndMatchesPartialNames() {
+        assertThat(matchesNameQuery("Quarterly Report.PDF", "quarterly")).isTrue()
+        assertThat(matchesNameQuery("Quarterly Report.PDF", ".pdf")).isTrue()
+        assertThat(matchesNameQuery("Quarterly Report.PDF", "REPORT")).isTrue()
+        assertThat(matchesNameQuery("Quarterly Report.PDF", "invoice")).isFalse()
+    }
+
+    @Test
+    fun blankFilenameSearchMatchesEverything() {
+        assertThat(matchesNameQuery("report.pdf", "")).isTrue()
+        assertThat(matchesNameQuery("report.pdf", "   ")).isTrue()
+    }
+
+    @Test
     fun supportedFilterTypesCoversAllElevenFormats() {
         val expectedBadges = listOf("PDF", "DOC", "XLS", "PPT", "IMG", "VID", "AUD", "MD", "TXT", "3D", "ZIP")
         assertThat(SUPPORTED_FILTER_TYPES.map { it.badge }).containsExactlyElementsIn(expectedBadges).inOrder()

@@ -12,6 +12,11 @@
         android:title="@string/filter"
         android:visible="false"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/action_search_names"
+        android:title="@string/search_filenames"
+        android:visible="false"
+        app:showAsAction="never" />
 
     <!-- Rate on a copy Google Play installed, the only install a rating can come from.
          Any other copy gets Switch to Google Play here instead: a copy from GitHub is
