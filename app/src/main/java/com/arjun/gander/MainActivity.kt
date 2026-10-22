@@ -833,6 +833,7 @@ class MainActivity : AppCompatActivity() {
         val input = EditText(this).apply {
             hint = getString(R.string.search_filenames_hint)
             setSingleLine(true)
+            tag = "filename_search_input"
             setText(nameQuery)
             setSelection(text.length)
             val horizontal = (24 * resources.displayMetrics.density).toInt()
