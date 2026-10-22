@@ -763,6 +763,8 @@ class MainActivity : AppCompatActivity() {
         }
         if (rows.isEmpty()) {
             val emptyMsg = when {
+                query.isNotEmpty() && filters.isNotEmpty() ->
+                    getString(R.string.search_filter_empty)
                 query.isNotEmpty() -> getString(R.string.search_empty)
                 filters.isNotEmpty() -> getString(R.string.filter_empty)
                 else -> getString(R.string.empty_folder)
