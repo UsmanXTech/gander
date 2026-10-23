@@ -112,6 +112,24 @@ class RecentsTest {
     private fun kept(uri: Uri) =
         context.contentResolver.persistedUriPermissions.any { it.uri == uri }
 
+    @Test
+    fun clearingRecentFilesRemovesEveryEntryAndReleasesItsGrants() {
+        val readOnly = granted("a.pdf")
+        val readWrite = FixtureProvider.uriFor("write.pdf")
+        context.contentResolver.takePersistableUriPermission(
+            readWrite, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        )
+        Recents.add(context, readOnly, "Read only")
+        Recents.add(context, readWrite, "Read and write")
+
+        Recents.clear(context)
+
+        assertThat(Recents.all(context)).isEmpty()
+        assertThat(kept(readOnly)).isFalse()
+        assertThat(kept(readWrite)).isFalse()
+    }
+
+
     /** Nothing else opens a file by its grant, so an entry that goes gives it back. */
     /** A file picked on a build that could rename it was granted write access too. */
     @Test
