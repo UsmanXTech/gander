@@ -260,20 +260,23 @@ class MainActivityTest {
             .findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
         assertThat(emptyToolbar.menu.findItem(R.id.action_clear_recents).isVisible).isFalse()
 
+        grantedFolder()
         granted("six-pages.pdf", "Alder Court.pdf")
         val populated = home()
         val toolbar = populated.get()
             .findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
         assertThat(toolbar.menu.findItem(R.id.action_clear_recents).isVisible).isTrue()
 
-        populated.clickRow("Alder Court.pdf")
+        populated.clickRow("Documents")
         shadowOf(context.mainLooper).idle()
         assertThat(toolbar.menu.findItem(R.id.action_clear_recents).isVisible).isFalse()
     }
 
     @Test
     fun clearingRecentFilesRequiresConfirmationAndDoesNotDeleteDocuments() {
-        val uri = granted("six-pages.pdf", "Alder Court.pdf")
+        grantedFolder()
+        val uri = FixtureProvider.uriFor("six-pages.pdf")
+        granted("six-pages.pdf", "Alder Court.pdf")
         val controller = home()
         val toolbar = controller.get()
             .findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
