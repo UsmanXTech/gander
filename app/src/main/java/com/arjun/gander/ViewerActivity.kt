@@ -2454,7 +2454,15 @@ open class ViewerActivity : AppCompatActivity() {
         player?.release()
         player = null
         doubleTapZoom?.cancel()
-        webView?.destroy()
+        // WebView owns native Chromium resources beyond the Java view. Detach it first,
+        // stop any outstanding load, and remove child views before destroying those resources.
+        // Calling destroy while still attached can leave the view hierarchy holding a dead view.
+        webView?.let { web ->
+            web.stopLoading()
+            (web.parent as? ViewGroup)?.removeView(web)
+            web.removeAllViews()
+            web.destroy()
+        }
         webView = null
         simplePdf?.close()
         simplePdf = null
