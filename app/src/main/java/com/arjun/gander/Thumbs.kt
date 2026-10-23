@@ -20,6 +20,17 @@ import java.security.MessageDigest
 import java.util.concurrent.Executors
 
 /**
+ * Power-of-two decode sampling for a thumbnail. Use the longer side: using the shorter side
+ * lets panoramic images decode to thousands of pixels wide even though the row shows 192 px.
+ */
+internal fun thumbnailSampleSize(width: Int, height: Int, target: Int): Int {
+    if (width <= 0 || height <= 0 || target <= 0) return 1
+    var sample = 1
+    while (maxOf(width, height) / (sample * 2) >= target) sample *= 2
+    return sample
+}
+
+/**
  * Small preview thumbnails for images, videos and PDFs.
  * Memory LRU + PNG disk cache under cacheDir/thumbs, generated off the
  * main thread. Kinds without a cheap visual preview simply keep their badge.
@@ -157,8 +168,7 @@ object Thumbs {
             BitmapFactory.decodeStream(it, null, bounds)
         }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-        var sample = 1
-        while (minOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= SIZE) sample *= 2
+        val sample = thumbnailSampleSize(bounds.outWidth, bounds.outHeight, SIZE)
         val opts = BitmapFactory.Options().apply { inSampleSize = sample }
         val bmp = ctx.contentResolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null, opts)
@@ -173,7 +183,19 @@ object Thumbs {
         val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(ctx, uri)
-            val frame = retriever.frameAtTime ?: return null
+            // Android 8.1+ can decode a frame at thumbnail dimensions directly, avoiding
+            // a full-resolution bitmap (often tens of MB) just to shrink it immediately.
+            val frame = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                retriever.getScaledFrameAtTime(
+                    -1L,
+                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                    SIZE,
+                    SIZE
+                )
+            } else {
+                // Android 8.0 lacks scaled-frame decoding; keep the compatible fallback.
+                retriever.frameAtTime
+            } ?: return null
             val scale = SIZE.toFloat() / maxOf(frame.width, frame.height)
             if (scale >= 1f) frame
             else Bitmap.createScaledBitmap(

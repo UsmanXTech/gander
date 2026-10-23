@@ -49,6 +49,30 @@ class ThumbsTest {
         mayHandOver = ::readOnlyFile
     }
 
+
+    // ---------------------------------------------------------------
+    // Decode size and memory
+    // ---------------------------------------------------------------
+
+    @Test
+    fun thumbnailSamplingUsesTheLongSideForPanoramas() {
+        assertThat(thumbnailSampleSize(8000, 1000, 192)).isEqualTo(32)
+        assertThat(thumbnailSampleSize(1000, 8000, 192)).isEqualTo(32)
+    }
+
+    @Test
+    fun thumbnailSamplingKeepsSmallImagesAtFullResolution() {
+        assertThat(thumbnailSampleSize(160, 120, 192)).isEqualTo(1)
+        assertThat(thumbnailSampleSize(192, 192, 192)).isEqualTo(1)
+    }
+
+    @Test
+    fun thumbnailSamplingHandlesInvalidDimensions() {
+        assertThat(thumbnailSampleSize(0, 1000, 192)).isEqualTo(1)
+        assertThat(thumbnailSampleSize(1000, 0, 192)).isEqualTo(1)
+        assertThat(thumbnailSampleSize(1000, 1000, 0)).isEqualTo(1)
+    }
+
     // ---------------------------------------------------------------
     // Which kinds get a preview at all
     // ---------------------------------------------------------------
