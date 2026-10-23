@@ -20,16 +20,6 @@ import java.security.MessageDigest
 import java.util.concurrent.Executors
 
 /**
- * Small preview thumbnails for images, videos and PDFs.
- * Memory LRU + PNG disk cache under cacheDir/thumbs, generated off the
- * main thread. Kinds without a cheap visual preview simply keep their badge.
- * A PDF's is drawn in an isolated process: see PdfThumbs.
- *
- * A file inside a zip gets the memory cache and never the disk. Nothing in a zip is written
- * to the phone, which is what Gander says about opening one, and a thumbnail on disk is a
- * copy of a photo, only smaller.
- */
-/**
  * Power-of-two decode sampling for a thumbnail. Use the longer side: using the shorter side
  * lets panoramic images decode to thousands of pixels wide even though the row shows 192 px.
  */
@@ -40,6 +30,16 @@ internal fun thumbnailSampleSize(width: Int, height: Int, target: Int): Int {
     return sample
 }
 
+/**
+ * Small preview thumbnails for images, videos and PDFs.
+ * Memory LRU + PNG disk cache under cacheDir/thumbs, generated off the
+ * main thread. Kinds without a cheap visual preview simply keep their badge.
+ * A PDF's is drawn in an isolated process: see PdfThumbs.
+ *
+ * A file inside a zip gets the memory cache and never the disk. Nothing in a zip is written
+ * to the phone, which is what Gander says about opening one, and a thumbnail on disk is a
+ * copy of a photo, only smaller.
+ */
 object Thumbs {
 
     private const val SIZE = 192
