@@ -253,6 +253,52 @@ class MainActivityTest {
         assertThat(rows.filter { it.isPressed }).isEmpty()
     }
 
+    @Test
+    fun clearRecentFilesIsOfferedOnlyWhenThereAreRecentEntriesAtHome() {
+        val empty = home()
+        val emptyToolbar = empty.get()
+            .findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
+        assertThat(emptyToolbar.menu.findItem(R.id.action_clear_recents).isVisible).isFalse()
+
+        granted("six-pages.pdf", "Alder Court.pdf")
+        val populated = home()
+        val toolbar = populated.get()
+            .findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
+        assertThat(toolbar.menu.findItem(R.id.action_clear_recents).isVisible).isTrue()
+
+        populated.clickRow("Alder Court.pdf")
+        shadowOf(context.mainLooper).idle()
+        assertThat(toolbar.menu.findItem(R.id.action_clear_recents).isVisible).isFalse()
+    }
+
+    @Test
+    fun clearingRecentFilesRequiresConfirmationAndDoesNotDeleteDocuments() {
+        val uri = granted("six-pages.pdf", "Alder Court.pdf")
+        val controller = home()
+        val toolbar = controller.get()
+            .findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
+
+        toolbar.menu.performIdentifierAction(R.id.action_clear_recents, 0)
+        val dialog = latestDialog()!!
+        assertThat(dialog.isShowing).isTrue()
+        assertThat(dialog.getButton(AlertDialog.BUTTON_NEGATIVE).text.toString())
+            .isEqualTo(context.getString(android.R.string.cancel))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).performClick()
+        shadowOf(context.mainLooper).idle()
+        assertThat(Recents.all(context)).hasSize(1)
+        assertThat(context.contentResolver.persistedUriPermissions.any { it.uri == uri }).isTrue()
+
+        toolbar.menu.performIdentifierAction(R.id.action_clear_recents, 0)
+        latestDialog()!!.getButton(AlertDialog.BUTTON_POSITIVE).performClick()
+        shadowOf(context.mainLooper).idle()
+
+        assertThat(Recents.all(context)).isEmpty()
+        assertThat(context.contentResolver.persistedUriPermissions.any { it.uri == uri }).isFalse()
+        assertThat(controller.rowTitles()).contains(context.getString(R.string.no_recents_hint))
+        assertThat(Fixtures.file("six-pages.pdf").exists()).isTrue()
+        assertThat(toolbar.menu.findItem(R.id.action_clear_recents).isVisible).isFalse()
+    }
+
     // ---------------------------------------------------------------
     // Layout
     // ---------------------------------------------------------------
