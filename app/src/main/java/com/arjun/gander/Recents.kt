@@ -43,6 +43,12 @@ object Recents {
         release(context, uri)
     }
 
+    /** Clears the list and releases every persisted grant owned only by a recent entry. */
+    fun clear(context: Context) {
+        load(context).forEach { release(context, it.uri) }
+        save(context, emptyList())
+    }
+
     /**
      * Gives back the grant on [uri], write as well as read: a build that could rename a picked
      * file took both, and giving back only the read half left the other behind, where the list,
