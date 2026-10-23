@@ -32,6 +32,11 @@
         android:title="@string/share_app"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_clear_recents"
+        android:title="@string/clear_recent_files"
+        android:visible="false"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_about"
         android:title="@string/about_gander"
         app:showAsAction="never" />
