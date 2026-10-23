@@ -167,6 +167,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.action_sort -> { showSortDialog(); true }
                 R.id.action_filter -> { showFilterDialog(); true }
                 R.id.action_search_names -> { showNameSearchDialog(); true }
+                R.id.action_clear_recents -> { showClearRecentsDialog(); true }
                 R.id.action_play -> { openPlayListing(); true }
                 R.id.action_share_app -> { shareGander(); true }
                 R.id.action_about -> { showAbout(); true }
@@ -475,6 +476,8 @@ class MainActivity : AppCompatActivity() {
         toolbar.menu.findItem(R.id.action_sort)?.isVisible = inFolder
         toolbar.menu.findItem(R.id.action_filter)?.isVisible = inFolder
         toolbar.menu.findItem(R.id.action_search_names)?.isVisible = inFolder
+        toolbar.menu.findItem(R.id.action_clear_recents)?.isVisible =
+            !inFolder && Recents.all(this).isNotEmpty()
         toolbar.menu.findItem(R.id.action_play)?.isVisible = !inFolder
         toolbar.menu.findItem(R.id.action_share_app)?.isVisible = !inFolder
         toolbar.menu.findItem(R.id.action_about)?.isVisible = !inFolder
@@ -827,6 +830,18 @@ class MainActivity : AppCompatActivity() {
                 Settings.setSortOrder(this, orders[which])
                 render()
                 dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun showClearRecentsDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.clear_recent_files_title)
+            .setMessage(R.string.clear_recent_files_message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.clear_recent_files_confirm) { _, _ ->
+                Recents.clear(this)
+                render()
             }
             .show()
     }
